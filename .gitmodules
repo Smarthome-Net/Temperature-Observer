@@ -3,4 +3,4 @@
 	url = https://github.com/DavidAntliff/esp32-ds18b20.git
 [submodule "components/esp32-owb"]
 	path = components/esp32-owb
-	url = https://github.com/DavidAntliff/esp32-owb.git
+	url = https://github.com/mjcross/esp32-owb.git

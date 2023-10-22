@@ -1,0 +1,9 @@
+key,type,encoding,value
+temp_observer,namespace,,
+interval,data,u8,10
+mqtt_port,data,u32,1883
+mqtt_host,data,string,""
+mqtt_room,data,string,"myRoom"
+mqtt_name,data,string,"myObserver"
+wifi_ssid,data,string,""
+wifi_password,data,string,""

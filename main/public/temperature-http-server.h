@@ -4,6 +4,9 @@
 #include "esp_log.h"
 #include "cJSON.h"
 #include "temperature-preferences.h"
+#include <models/temperate_preferences_t.h>
+#include <nlohmann/json.hpp>
+
 
 class Temperature_http_server
 {
@@ -22,5 +25,6 @@ public:
 
     esp_err_t get_index_handler(httpd_req_t *req);
     esp_err_t get_status_handler(httpd_req_t *req);
-    esp_err_t update_config_handler(httpd_req_t *req);
+    esp_err_t post_settings_handler(httpd_req_t *req);
+    esp_err_t get_settings_handler(httpd_req_t *req);
 };

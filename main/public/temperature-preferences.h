@@ -6,17 +6,8 @@
 #include "nvs.h"
 #include "nvs_handle.hpp"
 #include "string.h"
+#include "models/temperate_preferences_t.h"
 
-struct Temperature_preferences_t
-{
-    char *ssid;
-    char *password;
-    char *mqtt_host;
-    uint32_t mqtt_port;
-    uint32_t measure_intervall;
-    char *room;
-    char *name;
-};
 
 class Temperature_preferences
 {
@@ -25,8 +16,8 @@ private:
 public:
     Temperature_preferences();
     ~Temperature_preferences();
-    esp_err_t load_preferences(Temperature_preferences_t *preferences);
-    esp_err_t save_prefrenecs(Temperature_preferences_t *preferences);
+    esp_err_t load_preferences(models::Temperature_preferences_t *preferences);
+    esp_err_t save_prefrenecs(models::Temperature_preferences_t *preferences);
 
     esp_err_t set_factory_default(int force_factory = 0);
 };

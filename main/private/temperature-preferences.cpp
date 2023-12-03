@@ -38,7 +38,7 @@ Temperature_preferences::~Temperature_preferences()
 {
 }
 
-esp_err_t Temperature_preferences::load_preferences(Temperature_preferences_t *preferences)
+esp_err_t Temperature_preferences::load_preferences(models::Temperature_preferences_t *preferences)
 {
     ESP_LOGI(TAG, "Load preferences");
     esp_err_t err;
@@ -66,7 +66,7 @@ char *Temperature_preferences::read_string(nvs::NVSHandle *handle, const char *k
     return value;
 }
 
-esp_err_t Temperature_preferences::save_prefrenecs(Temperature_preferences_t *preferences)
+esp_err_t Temperature_preferences::save_prefrenecs(models::Temperature_preferences_t *preferences)
 {
     esp_err_t err;
     std::unique_ptr<nvs::NVSHandle> handle = nvs::open_nvs_handle(NVS_NAMESPACE, NVS_READWRITE, &err);
@@ -85,7 +85,7 @@ esp_err_t Temperature_preferences::save_prefrenecs(Temperature_preferences_t *pr
 
 esp_err_t Temperature_preferences::set_factory_default(int force_factory)
 {
-    Temperature_preferences_t preferences = { };
+    models::Temperature_preferences_t preferences = { };
     preferences.ssid = WIFI_SSID;
     preferences.password = WIFI_PASSWORD;
     preferences.mqtt_host = CONFIG_BROKER_HOST;

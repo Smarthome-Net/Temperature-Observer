@@ -12,7 +12,6 @@
 #include "freertos/task.h"
 #include "esp_system.h"
 #include "esp_log.h"
-#include "esp_spi_flash.h"
 #include "esp_sntp.h"
 #include "temperature-observer.h"
 #include "temperature-wifi.h"
@@ -23,6 +22,7 @@
 #include "nvs_flash.h"
 #include "esp_err.h"
 #include "time.h"
+#include "models/temperate_preferences_t.h"
 
 static const char *TAG = "temperature_main";
 
@@ -106,7 +106,7 @@ void app_main()
   esp_netif_init();
 
   Temperature_preferences* preference = new Temperature_preferences();
-  Temperature_preferences_t data;
+  models::Temperature_preferences_t data;
   //preference->set_factory_default();
   preference->load_preferences(&data);
   ESP_LOGI(TAG, "Mqtt Host: %s", data.mqtt_host);
@@ -118,21 +118,21 @@ void app_main()
   
   setenv("TZ", "CEST-1CET", 1);
   tzset();
-  sntp_setoperatingmode(SNTP_OPMODE_POLL);
-  sntp_setservername(0, "pool.ntp.org");
-  sntp_init();
+  esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+  esp_sntp_setservername(0, "pool.ntp.org");
+  esp_sntp_init();
   
   // workaround initialization for wifi_config to avoid outside aggregate initializer in c++
   wifi_config_t wifi_config = { };
-  strcpy((char*)wifi_config.sta.ssid, WIFI_SSID);
-  strcpy((char*)wifi_config.sta.password, WIFI_PASSWORD);
+  strcpy((char*)wifi_config.sta.ssid, data.ssid);
+  strcpy((char*)wifi_config.sta.password, data.password);
   wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
   wifi_config.sta.pmf_cfg.capable = true;
   wifi_config.sta.pmf_cfg.required = false;
 
-  esp_mqtt_client_config_t mqtt_config = {};
-  mqtt_config.broker.address.hostname = BROKER_HOST;
-  mqtt_config.broker.address.port = BROKER_PORT;
+  esp_mqtt_client_config_t mqtt_config = { };
+  mqtt_config.broker.address.hostname = data.mqtt_host;
+  mqtt_config.broker.address.port = data.mqtt_port;
   mqtt_config.broker.address.transport = TRANSPORT;
 
   Temperature_mqtt_client* mqtt_client = new Temperature_mqtt_client(&mqtt_config);

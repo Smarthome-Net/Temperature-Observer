@@ -22,6 +22,6 @@ steps:
     displayName: 'Esp Install'
     inputs:
       targetType: 'inline'
-      script: 
+      script: |
         cd ~/esp/esp-idf
         ./install.sh esp32

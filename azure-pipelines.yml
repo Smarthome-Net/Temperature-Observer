@@ -11,10 +11,17 @@ pool:
 
 steps:
   - task: Bash@3
-    displayName: 'Esp Install'
+    displayName: 'Esp Git Checkout'
     inputs:
       targetType: 'inline'
       script: |
         mkdir -p ~/esp
         cd ~/esp
         git clone -b v5.2.1 --recursive https://github.com/espressif/esp-idf.git
+  - task: Bash@3
+    displayName: 'Esp Install'
+    inputs:
+      workingDirectory: 'esp/esp-idf'
+      targetType: 'inline'
+      script: 
+        ./install.sh esp32

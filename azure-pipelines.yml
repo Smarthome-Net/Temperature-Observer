@@ -13,4 +13,4 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      get_idf
+      . $HOME/esp/esp-idf/export.sh

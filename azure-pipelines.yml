@@ -21,7 +21,7 @@ steps:
   - task: Bash@3
     displayName: 'Esp Install'
     inputs:
-      workingDirectory: '/esp/esp-idf'
       targetType: 'inline'
       script: 
+        cd ~/esp/esp-idf
         ./install.sh esp32

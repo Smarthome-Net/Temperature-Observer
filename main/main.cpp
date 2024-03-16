@@ -107,14 +107,7 @@ void app_main()
 
   Temperature_preferences* preference = new Temperature_preferences();
   models::Temperature_preferences_t data;
-  //preference->set_factory_default();
   preference->load_preferences(&data);
-  ESP_LOGI(TAG, "Mqtt Host: %s", data.mqtt_host);
-  ESP_LOGI(TAG, "Mqtt Port: %li", data.mqtt_port);
-  ESP_LOGI(TAG, "Interval: %li", data.measure_intervall);
-  ESP_LOGI(TAG, "WIFI SSID: %s", data.ssid);
-  ESP_LOGI(TAG, "Room: %s", data.room);
-  ESP_LOGI(TAG, "Name: %s", data.name);
   
   setenv("TZ", "CEST-1CET", 1);
   tzset();

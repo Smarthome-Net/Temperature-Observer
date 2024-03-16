@@ -21,7 +21,7 @@ namespace models
         friend void to_json(nlohmann::json& json, const Temperature_preferences_t& value) 
         {
             json["ssid"] = value.ssid;
-            json["password"] = value.password;
+            // json["password"] = value.password;
             json["mqttHost"] = value.mqtt_host;
             json["mqttPort"] = value.mqtt_port;
             json["measureIntervall"] = value.measure_intervall;

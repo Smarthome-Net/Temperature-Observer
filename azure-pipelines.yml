@@ -9,18 +9,10 @@ trigger:
 pool: Default
 
 steps:
-  - task: Bash@3
-    displayName: 'Esp Git Checkout'
-    inputs:
-      targetType: 'inline'
-      script: |
-        mkdir -p ~/esp
-        cd ~/esp
-        git clone -b v5.2.1 --recursive https://github.com/espressif/esp-idf.git
-  - task: Bash@3
-    displayName: 'Esp Install'
-    inputs:
-      targetType: 'inline'
-      script: |
-        cd ~/esp/esp-idf
-        ./install.sh esp32
+- task: Bash@3
+  inputs:
+    targetType: 'inline'
+    script: |
+      # Write your commands here
+      
+      echo 'Hello world'

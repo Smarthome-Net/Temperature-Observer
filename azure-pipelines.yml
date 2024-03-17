@@ -11,6 +11,7 @@ pool: Default
 
 steps:
 - task: Bash@3
+  displayName: 'Build Temperature Observer'
   inputs:
     targetType: 'inline'
     script: |
@@ -19,6 +20,7 @@ steps:
       idf.py build
 
 - task: ArchiveFiles@2
+  displayName: 'Archive full build folder'
   inputs:
     rootFolderOrFile: '$(Pipeline.Workspace)/s/build'
     includeRootFolder: true
@@ -27,6 +29,7 @@ steps:
     replaceExistingArchive: true
 
 - task: DownloadBuildArtifacts@1
+  displayName: 'Download Zip File'
   inputs:
     itemPattern: '**/*.zip'
-    downloadPath: '$(System.ArtifactsDirectory)'
+    downloadPath: '$(Build.ArtifactStagingDirectory)'

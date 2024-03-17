@@ -19,17 +19,7 @@ steps:
 
       idf.py build
 
-- task: ArchiveFiles@2
-  displayName: 'Archive full build folder'
+- task: PublishPipelineArtifact@1
   inputs:
-    rootFolderOrFile: '$(Pipeline.Workspace)/s/build'
-    includeRootFolder: true
-    archiveType: 'zip'
-    archiveFile: '$(Build.ArtifactStagingDirectory)/TemperatureObserver-$(Build.BuildId).zip'
-    replaceExistingArchive: true
-
-- task: DownloadBuildArtifacts@1
-  displayName: 'Download Zip File'
-  inputs:
-    itemPattern: '**/*.zip'
-    downloadPath: '$(Build.ArtifactStagingDirectory)'
+    targetPath: '$(Pipeline.Workspace)/s/build'
+    publishLocation: 'pipeline'

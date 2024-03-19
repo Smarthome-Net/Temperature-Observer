@@ -15,7 +15,6 @@
 #include "esp_sntp.h"
 #include "temperature-observer.h"
 #include "temperature-wifi.h"
-#include "temperature-http-server.h"
 #include "temperature-preferences.h"
 #include "lwip/inet.h"
 #include "lwip/ip4_addr.h"
@@ -81,14 +80,6 @@ void start_sync_time()
   ESP_LOGI(TAG, "The current time is: %s", time_buf);
 }
 
-void get_device_status(cJSON *json) 
-{
-  cJSON_AddNumberToObject(json, "CurrentTemperature", 42);
-  cJSON_AddNumberToObject(json, "BatteryStatus", 42);
-  cJSON_AddBoolToObject(json, "IsWifiConnected", false);
-  cJSON_AddBoolToObject(json, "IsMqttConnected", false);
-}
-
 void app_main()
 {
   ESP_LOGI(TAG, "Start Temperature Observer");
@@ -133,10 +124,6 @@ void app_main()
   Temperature_wifi* wifi_client = new Temperature_wifi(&wifi_config, mqtt_client);
   ESP_ERROR_CHECK(wifi_client->start_wifi());
   start_sync_time();
-
-  Temperature_http_server* server = new Temperature_http_server(&get_device_status, preference);
-  ESP_ERROR_CHECK(server->start_server());
-  ESP_ERROR_CHECK(server->register_endpoints());
   
   Temperature_observer* observer = new Temperature_observer(mqtt_client);
   ESP_ERROR_CHECK(observer->init_sensor());

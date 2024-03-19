@@ -16,7 +16,7 @@ class Temperature_mqtt_client
     esp_mqtt_client_config_t *mqtt_config;
     EventGroupHandle_t mqtt_event_group;
     const char* get_topic();
-
+    esp_mqtt_topic_t* get_rpc_subscribe_topics();
   public:
     Temperature_mqtt_client(esp_mqtt_client_config_t* mqtt_config);
     ~Temperature_mqtt_client();

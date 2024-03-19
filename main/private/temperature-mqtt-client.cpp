@@ -1,7 +1,6 @@
 #include "temperature-mqtt-client.h"
 
 static const char *TAG = "temperature_mqtt_client";
-static const char *BASE_TOPIC = "smarthome/sensors/temperature";
 
 #define MQTT_CONNECTED_BIT BIT0
 #define MQTT_FAIL_BIT BIT1
@@ -20,6 +19,8 @@ static int s_retry_count = 0;
 static void mqtt_event_handler_static(void *event_handler_arg, esp_event_base_t event_base, int32_t id, void *event_data)
 {
   Temperature_mqtt_client *client = (Temperature_mqtt_client *)event_handler_arg;
+  esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
+  event->current_data_offset;
   if(client != NULL)
   {
     client->consume_mqtt_event(id);
@@ -82,7 +83,7 @@ esp_err_t Temperature_mqtt_client::publish_message(float value) {
   gettimeofday(&current_time, NULL);
   int64_t seconds = (int64_t)current_time.tv_sec * 1000L;
 
-  const char* topic = get_topic();
+  const char* topic = this->get_topic();
   cJSON *root = cJSON_CreateObject();
   cJSON_AddNumberToObject(root, "Value", value);
   cJSON_AddNumberToObject(root, "Time", seconds);
@@ -149,6 +150,10 @@ bool Temperature_mqtt_client::get_is_connected()
 }
 
 const char* Temperature_mqtt_client::get_topic() {
+  const char *BASE_TOPIC = "smarthome/sensors";
+  const char *RPC = ".RPC";
+  const char *temperature = "/temperature";
+  const char *response = "/response";
   const char* room = (char*) ROOM;
   const char* name = (char*) NAME;
 
@@ -164,4 +169,9 @@ const char* Temperature_mqtt_client::get_topic() {
   ESP_LOGD(TAG, "Fulltopic: %s", buffer);
 
   return buffer;
+}
+
+esp_mqtt_topic_t* Temperature_mqtt_client::get_rpc_subscribe_topics() 
+{
+  esp_mqtt_topic_t topics;
 }

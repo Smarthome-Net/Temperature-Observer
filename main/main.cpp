@@ -13,6 +13,7 @@
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_sntp.h"
+#include "esp_timer.h"
 #include "temperature-observer.h"
 #include "temperature-wifi.h"
 #include "temperature-preferences.h"
@@ -81,6 +82,47 @@ void start_sync_time()
   ESP_LOGI(TAG, "The current time is: %s", time_buf);
 }
 
+uint64_t calculate_measure_time(int interval)
+{
+  const long factor = 1000;
+  timeval current_time;
+  struct tm *time;
+  
+  gettimeofday(&current_time, NULL);
+  time = localtime(&current_time.tv_sec);
+
+  int moduloResult = time->tm_min % interval;
+  int minute = time->tm_min - moduloResult + interval;
+  time->tm_min = minute;
+  time->tm_sec = 0;
+
+  //if reach 60 we swap the hour and reset the min to 0
+  if(minute == 60) {
+    time->tm_hour = time->tm_hour + 1;
+    time->tm_min = 0;
+  }
+
+  //if we reach midnight...
+  if(time->tm_hour == 24) {
+    time->tm_hour = 0;
+  }
+  ESP_LOGI(TAG, "The first measure time is: %s", asctime(time));
+  time_t tm = mktime(time);
+  long diff = tm - current_time.tv_sec;
+  ESP_LOGD(TAG, "The diff: %ld", diff);
+  return diff * factor;
+}
+
+void temperature_callback(void *args) 
+{
+  struct timeval current_time;
+  struct tm *time;
+
+  gettimeofday(&current_time, NULL);
+  time = localtime(&current_time.tv_sec);
+  ESP_LOGI(TAG, "The first measure time is: %s", asctime(time));
+}
+
 void app_main()
 {
   ESP_LOGI(TAG, "Start Temperature Observer");
@@ -130,22 +172,20 @@ void app_main()
   Temperature_observer* observer = new Temperature_observer();
   ESP_ERROR_CHECK(observer->init_sensor());
 
-  float value;
-  DS18B20_ERROR err = observer->read_temperature(&value);
-  if(err == DS18B20_OK) 
-  {
-    struct timeval current_time;
-    gettimeofday(&current_time, NULL);
-    int64_t seconds = (int64_t)current_time.tv_sec * 1000L;
-    models::Temperature_value_t tt = { 
-      .value = value,
-      .time = seconds
-    };
-    ESP_ERROR_CHECK(mqtt_client->publish_temperature_value(tt));
-  }
+  uint64_t start = calculate_measure_time(data.measure_intervall);
+
+  esp_timer_handle_t temperatur_timer_handle;
+  esp_timer_create_args_t temperature_timer_args = {
+    .callback = &temperature_callback
+  };
+  esp_timer_create(&temperature_timer_args, &temperatur_timer_handle);
+  esp_timer_start_once(temperatur_timer_handle, start);
+  
   
   printf("End of Application \n");
   fflush(stdout);
 }
+
+
 
 

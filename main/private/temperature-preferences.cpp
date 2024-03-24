@@ -94,6 +94,6 @@ esp_err_t Temperature_preferences::set_factory_default(int force_factory)
     preferences.mqtt_port = CONFIG_BROKER_PORT;
     preferences.measure_intervall = INTERVAL;
 
-    //this->save_prefrenecs(&preferences);
+    this->save_prefrenecs(&preferences);
     return ESP_OK;
 }

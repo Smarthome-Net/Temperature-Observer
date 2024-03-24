@@ -6,7 +6,7 @@
 #include "nvs.h"
 #include "nvs_handle.hpp"
 #include "string.h"
-#include "models/temperate_preferences_t.h"
+#include "models/temperature_preferences_t.h"
 
 
 class Temperature_preferences

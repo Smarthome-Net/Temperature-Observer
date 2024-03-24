@@ -3,7 +3,6 @@
 #include "esp_wifi.h"
 #include "esp_log.h"
 #include "freertos/event_groups.h"
-#include "temperature-mqtt-client.h"
 
 class Temperature_wifi
 {
@@ -11,7 +10,6 @@ class Temperature_wifi
 private:
   wifi_init_config_t init_config = WIFI_INIT_CONFIG_DEFAULT();
   wifi_config_t *config;
-  Temperature_mqtt_client *mqtt_client;
   EventGroupHandle_t temperature_wifi_event_group;
   bool is_connected = false;
 
@@ -48,7 +46,7 @@ private:
   /**
    * Wait for the event group handle
   */
-  void event_group_wait();
+  esp_err_t event_group_wait();
 
 public:
   esp_netif_t *netif;
@@ -56,7 +54,7 @@ public:
    * constructor
    * @param config wifi configuration
   */
-  Temperature_wifi(wifi_config_t *config, Temperature_mqtt_client *mqtt_client);
+  Temperature_wifi(wifi_config_t *config);
   ~Temperature_wifi();
 
   /**

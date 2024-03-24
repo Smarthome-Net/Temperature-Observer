@@ -35,10 +35,9 @@ void event_handler(void *handler_arg, esp_event_base_t base, int32_t id, void *e
   }
 }
 
-Temperature_wifi::Temperature_wifi(wifi_config_t *config, Temperature_mqtt_client *mqtt_client)
+Temperature_wifi::Temperature_wifi(wifi_config_t *config)
 {
   this->config = config;
-  this->mqtt_client = mqtt_client;
   this->temperature_wifi_event_group = xEventGroupCreate();
 }
 
@@ -120,9 +119,10 @@ esp_err_t Temperature_wifi::start_wifi()
     return_code = this->start_wifi_sta();
     ESP_LOGI(TAG, "Station started");
   }
+  
   if (return_code == ESP_OK)
   {
-    this->event_group_wait();
+    return this->event_group_wait();
   }
   return return_code;
 }
@@ -192,7 +192,7 @@ void Temperature_wifi::connect()
   }
 }
 
-void Temperature_wifi::event_group_wait()
+esp_err_t Temperature_wifi::event_group_wait()
 {
   EventBits_t bits = xEventGroupWaitBits(this->temperature_wifi_event_group,
                                          WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
@@ -203,16 +203,15 @@ void Temperature_wifi::event_group_wait()
   if (bits & WIFI_CONNECTED_BIT)
   {
     ESP_LOGI(TAG, "Connected to ap");
-    this->mqtt_client->connect_mqtt();
+    return ESP_OK;
   }
   else if (bits & WIFI_FAIL_BIT)
   {
     ESP_LOGI(TAG, "Failed to connect to ap");
+    return ESP_FAIL;
   }
-  else
-  {
-    ESP_LOGI(TAG, "Unexpected event");
-  }
+  ESP_LOGI(TAG, "Unexpected event");
+  return ESP_FAIL;
 }
 
 void Temperature_wifi::log_err_code(esp_err_t error_code, const char *message)

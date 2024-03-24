@@ -16,12 +16,13 @@
 #include "temperature-observer.h"
 #include "temperature-wifi.h"
 #include "temperature-preferences.h"
+#include "temperature-mqtt-client.h"
 #include "lwip/inet.h"
 #include "lwip/ip4_addr.h"
 #include "nvs_flash.h"
 #include "esp_err.h"
 #include "time.h"
-#include "models/temperate_preferences_t.h"
+#include "models/temperature_preferences_t.h"
 
 static const char *TAG = "temperature_main";
 
@@ -121,13 +122,27 @@ void app_main()
 
   Temperature_mqtt_client* mqtt_client = new Temperature_mqtt_client(&mqtt_config);
 
-  Temperature_wifi* wifi_client = new Temperature_wifi(&wifi_config, mqtt_client);
+  Temperature_wifi* wifi_client = new Temperature_wifi(&wifi_config);
   ESP_ERROR_CHECK(wifi_client->start_wifi());
   start_sync_time();
+  ESP_ERROR_CHECK(mqtt_client->connect_mqtt());
   
-  Temperature_observer* observer = new Temperature_observer(mqtt_client);
+  Temperature_observer* observer = new Temperature_observer();
   ESP_ERROR_CHECK(observer->init_sensor());
-  ESP_ERROR_CHECK(observer->start());
+
+  float value;
+  DS18B20_ERROR err = observer->read_temperature(&value);
+  if(err == DS18B20_OK) 
+  {
+    struct timeval current_time;
+    gettimeofday(&current_time, NULL);
+    int64_t seconds = (int64_t)current_time.tv_sec * 1000L;
+    models::Temperature_value_t tt = { 
+      .value = value,
+      .time = seconds
+    };
+    ESP_ERROR_CHECK(mqtt_client->publish_temperature_value(tt));
+  }
   
   printf("End of Application \n");
   fflush(stdout);

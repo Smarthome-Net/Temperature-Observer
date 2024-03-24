@@ -1,6 +1,7 @@
 #include "temperature-mqtt-client.h"
 
 static const char *TAG = "temperature_mqtt_client";
+const char *BASE_TOPIC = "smarthome/sensors";
 
 #define MQTT_CONNECTED_BIT BIT0
 #define MQTT_FAIL_BIT BIT1
@@ -20,7 +21,6 @@ static void mqtt_event_handler_static(void *event_handler_arg, esp_event_base_t 
 {
   Temperature_mqtt_client *client = (Temperature_mqtt_client *)event_handler_arg;
   esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
-  event->current_data_offset;
   if(client != NULL)
   {
     client->consume_mqtt_event(id);
@@ -38,7 +38,7 @@ Temperature_mqtt_client::~Temperature_mqtt_client()
 }
 
 
-void Temperature_mqtt_client::connect_mqtt()
+esp_err_t Temperature_mqtt_client::connect_mqtt()
 {
   ESP_LOGI(TAG, "Connect to MQTT");
   this->mqtt_event_group = xEventGroupCreate();  
@@ -46,49 +46,47 @@ void Temperature_mqtt_client::connect_mqtt()
   if(this->mqtt_client == NULL)
   {
     ESP_LOGW(TAG, "Unable to create mqtt client");
+    return ESP_FAIL;
   }
-  else
+  esp_mqtt_client_register_event(this->mqtt_client, MQTT_EVENT_ANY, mqtt_event_handler_static, this);
+  ESP_LOGI(TAG, "Mqtt client created, start now");
+  esp_err_t return_code = esp_mqtt_client_start(this->mqtt_client);
+  const char *name = esp_err_to_name(return_code);
+  ESP_LOGI(TAG, "Return code for mqtt clients start: %s", name);
+  ESP_ERROR_CHECK(return_code);
+  if(return_code == ESP_OK)
   {
-    esp_mqtt_client_register_event(this->mqtt_client, MQTT_EVENT_ANY, mqtt_event_handler_static, this);
-    ESP_LOGI(TAG, "Mqtt client created, start now");
-    esp_err_t return_code = esp_mqtt_client_start(this->mqtt_client);
-    const char *name = esp_err_to_name(return_code);
-    ESP_LOGI(TAG, "Return code for mqtt clients start: %s", name);
-    ESP_ERROR_CHECK(return_code);
-    if(return_code == ESP_OK)
+    EventBits_t bits = xEventGroupWaitBits(this->mqtt_event_group, MQTT_CONNECTED_BIT | MQTT_FAIL_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+    if(bits & MQTT_CONNECTED_BIT)
     {
-      EventBits_t bits = xEventGroupWaitBits(this->mqtt_event_group, MQTT_CONNECTED_BIT | MQTT_FAIL_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
-      if(bits & MQTT_CONNECTED_BIT)
-      {
-        ESP_LOGI(TAG, "Connected to MQTT Broker");
-      }
-      else if(bits & MQTT_FAIL_BIT)
-      {
-        ESP_LOGI(TAG, "Fail connect to MQTT Broker");
-        esp_mqtt_client_stop(this->mqtt_client);
-      }
-      else
-      {
-        ESP_LOGI(TAG, "Something unexpected happened");
-      }
+      ESP_LOGI(TAG, "Connected to MQTT Broker");
+      return ESP_OK;
     }
+    else if(bits & MQTT_FAIL_BIT)
+    {
+      ESP_LOGI(TAG, "Fail connect to MQTT Broker");
+      esp_mqtt_client_stop(this->mqtt_client);
+      return ESP_FAIL;
+    }
+    ESP_LOGI(TAG, "Something unexpected happened");
+    return ESP_FAIL;
   }
+  return return_code;
 }
 
-esp_err_t Temperature_mqtt_client::publish_message(float value) {
+esp_err_t Temperature_mqtt_client::publish_temperature_value(models::Temperature_value_t value) 
+{
   if(!this->is_connected) {
     return ESP_ERR_INVALID_STATE;
   }
   struct timeval current_time;
   gettimeofday(&current_time, NULL);
   int64_t seconds = (int64_t)current_time.tv_sec * 1000L;
-
+  
   const char* topic = this->get_topic();
-  cJSON *root = cJSON_CreateObject();
-  cJSON_AddNumberToObject(root, "Value", value);
-  cJSON_AddNumberToObject(root, "Time", seconds);
-  char* sJson = cJSON_Print(root);
-  ESP_LOGD(TAG, "%s", sJson);
+  nlohmann::json json = value;
+  const char *sJson = json.dump().c_str();
+  ESP_LOGI(TAG, "%s", sJson);
 
   int status = esp_mqtt_client_publish(this->mqtt_client, topic, sJson, strlen(sJson), 0, 0);
   if(status == -1) {
@@ -150,14 +148,13 @@ bool Temperature_mqtt_client::get_is_connected()
 }
 
 const char* Temperature_mqtt_client::get_topic() {
-  const char *BASE_TOPIC = "smarthome/sensors";
-  const char *RPC = ".RPC";
-  const char *temperature = "/temperature";
-  const char *response = "/response";
+  const char *temperature = "temperature";
   const char* room = (char*) ROOM;
   const char* name = (char*) NAME;
 
   size_t size = strlen(BASE_TOPIC);
+  size += strlen("/");
+  size *= strlen(temperature);
   size += strlen("/");
   size += strlen(room);
   size += strlen("/");
@@ -165,13 +162,48 @@ const char* Temperature_mqtt_client::get_topic() {
   size += 1;
 
   char* buffer = (char *)malloc(size);
-  snprintf(buffer, size, "%s/%s/%s", BASE_TOPIC, room, name);
+  snprintf(buffer, size, "%s/%s/%s/%s", BASE_TOPIC, temperature, room, name);
   ESP_LOGD(TAG, "Fulltopic: %s", buffer);
 
   return buffer;
 }
 
-esp_mqtt_topic_t* Temperature_mqtt_client::get_rpc_subscribe_topics() 
+const char* Temperature_mqtt_client::get_rpc_subscribe_topic(const char* endpoint) 
 {
-  esp_mqtt_topic_t topics;
+  const char *RPC = "RPC";
+  const char* room = (char*) ROOM;
+  const char* name = (char*) NAME;
+
+  size_t size = strlen(BASE_TOPIC);
+  size += strlen(".");
+  size += strlen(RPC);
+  size += strlen("/");
+  size += strlen(room);
+  size += strlen("/");
+  size += strlen(name);
+  size += strlen("/");
+  size += strlen(endpoint);
+  size += 1;
+
+  char* buffer = (char *)malloc(size);
+  snprintf(buffer, size, "%s.%s/%s/%s/%s", BASE_TOPIC, RPC, room, name, endpoint);
+  ESP_LOGD(TAG, "Fulltopic: %s", buffer);
+
+  return buffer;
+}
+
+const char* Temperature_mqtt_client::get_rpc_response_topic(const char* topic) 
+{
+  const char *response = "response";
+
+  size_t size = strlen(topic);
+  size += strlen("/");
+  size *= strlen(response);
+  size += 1;
+
+  char* buffer = (char *)malloc(size);
+  snprintf(buffer, size, "%s/%s", topic, response);
+  ESP_LOGD(TAG, "Fulltopic: %s", buffer);
+
+  return buffer;
 }

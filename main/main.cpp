@@ -7,17 +7,16 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 #include <stdio.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/task.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "esp_sntp.h"
 #include "esp_timer.h"
+#include "esp_sleep.h"
 #include "temperature-observer.h"
 #include "temperature-wifi.h"
 #include "temperature-preferences.h"
 #include "temperature-mqtt-client.h"
+#include "temperature-led.h"
 #include "lwip/inet.h"
 #include "lwip/ip4_addr.h"
 #include "nvs_flash.h"
@@ -26,6 +25,9 @@
 #include "models/temperature_preferences_t.h"
 
 static const char *TAG = "temperature_main";
+
+// https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
+#define TIMEZONE "CET-1CEST,M3.5.0/02,M10.5.0/03"
 
 #define WIFI_SSID CONFIG_WIFI_SSID
 
@@ -82,45 +84,11 @@ void start_sync_time()
   ESP_LOGI(TAG, "The current time is: %s", time_buf);
 }
 
-uint64_t calculate_measure_time(int interval)
-{
-  const long factor = 1000;
-  timeval current_time;
+void sync_time_callback(struct timeval *tv) {
   struct tm *time;
-  
-  gettimeofday(&current_time, NULL);
-  time = localtime(&current_time.tv_sec);
-
-  int moduloResult = time->tm_min % interval;
-  int minute = time->tm_min - moduloResult + interval;
-  time->tm_min = minute;
-  time->tm_sec = 0;
-
-  //if reach 60 we swap the hour and reset the min to 0
-  if(minute == 60) {
-    time->tm_hour = time->tm_hour + 1;
-    time->tm_min = 0;
-  }
-
-  //if we reach midnight...
-  if(time->tm_hour == 24) {
-    time->tm_hour = 0;
-  }
-  ESP_LOGI(TAG, "The first measure time is: %s", asctime(time));
-  time_t tm = mktime(time);
-  long diff = tm - current_time.tv_sec;
-  ESP_LOGD(TAG, "The diff: %ld", diff);
-  return diff * factor;
-}
-
-void temperature_callback(void *args) 
-{
-  struct timeval current_time;
-  struct tm *time;
-
-  gettimeofday(&current_time, NULL);
-  time = localtime(&current_time.tv_sec);
-  ESP_LOGI(TAG, "The first measure time is: %s", asctime(time));
+  gettimeofday(tv, NULL);
+  time = localtime(&tv->tv_sec);
+  ESP_LOGI(TAG, "The current time is: %s", asctime(time));
 }
 
 void app_main()
@@ -143,10 +111,12 @@ void app_main()
   models::Temperature_preferences_t data;
   preference->load_preferences(&data);
   
-  setenv("TZ", "CEST-1CET", 1);
+  setenv("TZ", TIMEZONE, 1);
   tzset();
   esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
   esp_sntp_setservername(0, "pool.ntp.org");
+  esp_sntp_set_sync_interval(24 * 60 * 60 * 1000);
+  esp_sntp_set_time_sync_notification_cb(&sync_time_callback);
   esp_sntp_init();
   
   // workaround initialization for wifi_config to avoid outside aggregate initializer in c++
@@ -166,26 +136,22 @@ void app_main()
 
   Temperature_wifi* wifi_client = new Temperature_wifi(&wifi_config);
   ESP_ERROR_CHECK(wifi_client->start_wifi());
-  start_sync_time();
   ESP_ERROR_CHECK(mqtt_client->connect_mqtt());
   
   Temperature_observer* observer = new Temperature_observer();
   ESP_ERROR_CHECK(observer->init_sensor());
 
-  uint64_t start = calculate_measure_time(data.measure_intervall);
+  Temperature_led* blinkyLed = new Temperature_led(GPIO_NUM_19);
+  Temperature_led* permaLed = new Temperature_led(GPIO_NUM_16);
+  permaLed->toggle();
 
-  esp_timer_handle_t temperatur_timer_handle;
-  esp_timer_create_args_t temperature_timer_args = {
-    .callback = &temperature_callback
-  };
-  esp_timer_create(&temperature_timer_args, &temperatur_timer_handle);
-  esp_timer_start_once(temperatur_timer_handle, start);
-  
-  
+  blinkyLed->start_blink(250);
+  vTaskDelay(5000 / portTICK_PERIOD_MS);
+  blinkyLed->stop_blink();
+  permaLed->toggle();
+
   printf("End of Application \n");
   fflush(stdout);
 }
-
-
 
 

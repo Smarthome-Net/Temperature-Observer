@@ -20,12 +20,6 @@ private:
   esp_err_t create_event_loop();
 
   /**
-   * Create a wifi access point
-   * @return an esp error code
-  */
-  esp_err_t create_wifi_ap();
-
-  /**
    * Create a wifi station, that can connect to an access point
    * @return esp error code
   */
@@ -68,16 +62,7 @@ public:
    * @param id event id for wifi events
    * @param event_data data from the event, should be cast to specific typ
   */
-  void consume_wifi_event(int32_t id, void* event_data);
-
-  /**
-   * Consume an ip event
-   * @param id event id for ip events
-   * @param event_date data from the event, should be cast to specific typ
-  */
-  void consume_ip_event(int32_t id, void* event_data);
-
-  bool get_is_connected();
+  void retry_connect();
 };
 
 

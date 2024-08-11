@@ -10,25 +10,20 @@ static int s_retry_count = 0;
 
 #define MQTT_MAXIUM_RETRY CONFIG_MAXIMUN_CONNECT_RETRY
 
-#define ROOM CONFIG_ROOM
-
-#define NAME CONFIG_NAME
-
 // workaround to go back to observer object scope, so we can set the connected bit and call other object stuff
 // the observer was set in the constructor, the event handler was set when the mqtt client start to connect
-
 static void mqtt_event_handler_static(void *event_handler_arg, esp_event_base_t event_base, int32_t id, void *event_data)
 {
   Temperature_mqtt_client *client = (Temperature_mqtt_client *)event_handler_arg;
   esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
   if(client != NULL)
   {
-    client->consume_mqtt_event(id);
+    client->consume_mqtt_event(id, event_data);
   }
 }
 
 
-Temperature_mqtt_client::Temperature_mqtt_client(esp_mqtt_client_config_t* mqtt_config)
+Temperature_mqtt_client::Temperature_mqtt_client(models::Temperature_mqtt_config_t* mqtt_config)
 {
   this->mqtt_config = mqtt_config;
 }
@@ -37,12 +32,18 @@ Temperature_mqtt_client::~Temperature_mqtt_client()
 {
 }
 
+esp_err_t Temperature_mqtt_client::subscribe_status(void *callback)
+{
+  const char* topic = this->get_rpc_subscribe_topic("status");
+  esp_mqtt_client_subscribe(this->mqtt_client, topic,  0);
+  return ESP_OK;
+}
 
 esp_err_t Temperature_mqtt_client::connect_mqtt()
 {
   ESP_LOGI(TAG, "Connect to MQTT");
   this->mqtt_event_group = xEventGroupCreate();  
-  this->mqtt_client = esp_mqtt_client_init(this->mqtt_config);
+  this->mqtt_client = esp_mqtt_client_init(this->mqtt_config->mqtt_config);
   if(this->mqtt_client == NULL)
   {
     ESP_LOGW(TAG, "Unable to create mqtt client");
@@ -88,15 +89,30 @@ esp_err_t Temperature_mqtt_client::publish_temperature_value(models::Temperature
   const char *sJson = json.dump().c_str();
   ESP_LOGI(TAG, "%s", sJson);
 
-  int status = esp_mqtt_client_publish(this->mqtt_client, topic, sJson, strlen(sJson), 0, 0);
-  if(status == -1) {
+  int publish_status = esp_mqtt_client_publish(this->mqtt_client, topic, sJson, strlen(sJson), 0, 0);
+  if(publish_status == -1) {
     return ESP_FAIL;
   }
   return ESP_OK;
 }
 
-esp_err_t Temperature_mqtt_client::consume_mqtt_event(int32_t event)
+esp_err_t Temperature_mqtt_client::publish_status(models::Temperature_device_status_t device_status, const char* topic)
 {
+  const char* response_topic = this->get_rpc_response_topic(topic);
+  nlohmann::json json = device_status;
+  const char* sJson = json.dump().c_str();
+  ESP_LOGI(TAG, "%s", sJson);
+  
+  int publish_status = esp_mqtt_client_publish(this->mqtt_client, response_topic, sJson, strlen(sJson), 0, 0);
+  if(publish_status == -1) {
+    return ESP_FAIL;
+  }
+  return ESP_OK;
+}
+
+esp_err_t Temperature_mqtt_client::consume_mqtt_event(int32_t event, void *event_data)
+{
+  esp_mqtt_event_handle_t mqtt_event_data = (esp_mqtt_event_handle_t) event_data;
   switch (event)
   {
     case MQTT_EVENT_ERROR:
@@ -128,9 +144,12 @@ esp_err_t Temperature_mqtt_client::consume_mqtt_event(int32_t event)
       break;
     case MQTT_EVENT_SUBSCRIBED:
       ESP_LOGI(TAG, "Subscribe to broker");
+      ESP_LOGI(TAG, "Topic: %s", mqtt_event_data->topic);
       break;
     case MQTT_EVENT_DATA:
       ESP_LOGI(TAG, "Esp data event");
+      ESP_LOGI(TAG, "Topic: %s", mqtt_event_data->topic);
+      ESP_LOGI(TAG, "Data: %s", mqtt_event_data->data);
       break;
     case MQTT_EVENT_BEFORE_CONNECT:
       ESP_LOGI(TAG, "Mqtt before connect");
@@ -147,10 +166,11 @@ bool Temperature_mqtt_client::get_is_connected()
   return is_connected;
 }
 
-const char* Temperature_mqtt_client::get_topic() {
+const char* Temperature_mqtt_client::get_topic() 
+{
   const char *temperature = "temperature";
-  const char* room = (char*) ROOM;
-  const char* name = (char*) NAME;
+  const char* room = this->mqtt_config->room;
+  const char* name = this->mqtt_config->name;
 
   size_t size = strlen(BASE_TOPIC);
   size += strlen("/");
@@ -171,8 +191,8 @@ const char* Temperature_mqtt_client::get_topic() {
 const char* Temperature_mqtt_client::get_rpc_subscribe_topic(const char* endpoint) 
 {
   const char *RPC = "RPC";
-  const char* room = (char*) ROOM;
-  const char* name = (char*) NAME;
+  const char* room = this->mqtt_config->room;
+  const char* name = this->mqtt_config->name;
 
   size_t size = strlen(BASE_TOPIC);
   size += strlen(".");

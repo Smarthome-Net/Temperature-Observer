@@ -28,6 +28,22 @@ static const int INTERVAL = 10;
 
 #define NAME CONFIG_NAME
 
+#if CONFIG_TRANSPORT_MQTT
+#define TRANSPORT MQTT_TRANSPORT_OVER_TCP
+#endif
+
+#if CONFIG_TRANSPORT_MQTTS
+#define TRANSPORT MQTT_TRANSPORT_OVER_SSL
+#endif
+
+#if CONFIG_TRANSPORT_WS
+#define TRANSPORT MQTT_TRANSPORT_OVER_WS
+#endif
+
+#if CONFIG_PROTOCOL_WSS
+#define TRANSPORT MQTT_TRANSPORT_OVER_WSS
+#endif
+
 
 
 Temperature_preferences::Temperature_preferences()
@@ -53,7 +69,37 @@ esp_err_t Temperature_preferences::load_preferences(models::Temperature_preferen
     preferences->ssid = this->read_string(handle.get(), temperature_preferences_keys.wifi_ssid);
     preferences->password = this->read_string(handle.get(), temperature_preferences_keys.wifi_password);
     ESP_LOGI(TAG, "Preferences loaded succesfully");
-    return ESP_OK;
+    return err;
+}
+
+esp_err_t Temperature_preferences::load_wifi_config(wifi_config_t *wifi_config) 
+{
+    ESP_LOGI(TAG, "Load wifi config");
+    esp_err_t err;
+    std::unique_ptr<nvs::NVSHandle> handle = nvs::open_nvs_handle(NVS_NAMESPACE, NVS_READONLY, &err);
+    ESP_ERROR_CHECK(err);
+
+    strcpy((char*)wifi_config->sta.ssid, this->read_string(handle.get(), temperature_preferences_keys.wifi_ssid));
+    strcpy((char*)wifi_config->sta.password, this->read_string(handle.get(), temperature_preferences_keys.wifi_password));
+    wifi_config->sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    wifi_config->sta.pmf_cfg.capable = true;
+    wifi_config->sta.pmf_cfg.required = false;
+    ESP_LOGI(TAG, "Wifi config loaded succesfully");
+    return err;
+}
+
+esp_err_t Temperature_preferences::load_mqtt_config(models::Temperature_mqtt_config_t *mqtt_config)
+{
+    esp_err_t err;
+    std::unique_ptr<nvs::NVSHandle> handle = nvs::open_nvs_handle(NVS_NAMESPACE, NVS_READONLY, &err);
+    ESP_ERROR_CHECK(err);
+
+    mqtt_config->room = this->read_string(handle.get(), temperature_preferences_keys.mqtt_room);
+    mqtt_config->name = this->read_string(handle.get(), temperature_preferences_keys.mqtt_name);
+    mqtt_config->mqtt_config->broker.address.hostname = this->read_string(handle.get(), temperature_preferences_keys.mqtt_host);
+    handle->get_item(temperature_preferences_keys.mqtt_port, mqtt_config->mqtt_config->broker.address.port);
+    mqtt_config->mqtt_config->broker.address.transport = TRANSPORT;
+    return err;
 }
 
 char *Temperature_preferences::read_string(nvs::NVSHandle *handle, const char *key)

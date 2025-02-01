@@ -23,7 +23,8 @@ void event_handler(void *handler_arg, esp_event_base_t base, int32_t id, void *e
   {
     case WIFI_EVENT_STA_START:
     {
-      ESP_LOGI(TAG, "Station started");
+      ESP_LOGI(TAG, "Station started event");
+      temperature_wifi_ref->connect();
       break;
     }
     case WIFI_EVENT_STA_CONNECTED:
@@ -41,6 +42,7 @@ void event_handler(void *handler_arg, esp_event_base_t base, int32_t id, void *e
     {
       ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
       ESP_LOGI(TAG, "Got ip: " IPSTR, IP2STR(&event->ip_info.ip));
+      temperature_wifi_ref->set_connected();
       break;
     }
     default:
@@ -116,7 +118,6 @@ esp_err_t Temperature_wifi::start_wifi()
   {
     esp_wifi_init(&this->init_config);
     return_code = this->start_wifi_sta();
-    ESP_LOGI(TAG, "Station started");
   }
 
   if (return_code == ESP_OK)
@@ -150,6 +151,12 @@ void Temperature_wifi::connect()
     this->log_err_code(return_code, "Wifi connect fail");
   }
 }
+
+void Temperature_wifi::set_connected()
+{
+  xEventGroupSetBits(this->temperature_wifi_event_group, WIFI_CONNECTED_BIT);
+}
+
 
 esp_err_t Temperature_wifi::event_group_wait()
 {

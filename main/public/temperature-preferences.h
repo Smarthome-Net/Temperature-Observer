@@ -8,13 +8,14 @@
 #include "nvs_handle.hpp"
 #include "string.h"
 #include "models/temperature_preferences_t.h"
-#include "models/temperature_mqtt_config_t.h";
+#include "models/temperature_mqtt_config_t.h"
 
 
 class Temperature_preferences
 {
 private:
     char *read_string(nvs::NVSHandle *handle, const char *key);
+    uint32_t read_uint32_t(nvs::NVSHandle *handle, const char *key);
 public:
     Temperature_preferences();
     ~Temperature_preferences();

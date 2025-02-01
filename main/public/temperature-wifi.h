@@ -10,6 +10,7 @@ class Temperature_wifi
 private:
   wifi_init_config_t init_config = WIFI_INIT_CONFIG_DEFAULT();
   wifi_config_t *config;
+  esp_netif_t *netif;
   EventGroupHandle_t temperature_wifi_event_group;
   bool is_connected = false;
 
@@ -32,10 +33,7 @@ private:
   */
   void log_err_code(esp_err_t err_code, const char* message);
 
-  /**
-   * Call wifi connect and log error if not succeed
-  */
-  void connect();
+  
 
   /**
    * Wait for the event group handle
@@ -43,7 +41,7 @@ private:
   esp_err_t event_group_wait();
 
 public:
-  esp_netif_t *netif;
+  
   /**
    * constructor
    * @param config wifi configuration
@@ -59,10 +57,15 @@ public:
 
   /**
    * Consume a wifi event
-   * @param id event id for wifi events
-   * @param event_data data from the event, should be cast to specific typ
   */
   void retry_connect();
+
+  /**
+   * Call wifi connect and log error if not succeed
+  */
+  void connect();
+
+  void set_connected();
 };
 
 

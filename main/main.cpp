@@ -64,6 +64,14 @@ void sync_time_callback(struct timeval *tv) {
   ESP_LOGI(TAG, "The current time is: %s", asctime(time));
 }
 
+void get_device_status() {
+
+}
+
+void get_or_update_device_settings() {
+
+}
+
 void app_main()
 {
   ESP_LOGI(TAG, "Start Temperature Observer");
@@ -82,10 +90,6 @@ void app_main()
   ESP_ERROR_CHECK(err_code);
   ESP_ERROR_CHECK(esp_netif_init());
   ESP_ERROR_CHECK(esp_event_loop_create_default());
-
-  Temperature_preferences* preference = new Temperature_preferences();
-  models::Temperature_preferences_t data;
-  preference->load_preferences(&data);
   
   setenv("TZ", TIMEZONE, 1);
   tzset(); 
@@ -98,8 +102,10 @@ void app_main()
 
   models::Temperature_mqtt_config_t mqtt_config = { };
   preference->load_mqtt_config(&mqtt_config);
-
   Temperature_mqtt_client* mqtt_client = new Temperature_mqtt_client(&mqtt_config);
+  ESP_ERROR_CHECK(mqtt_client->connect_mqtt());
+  ESP_ERROR_CHECK(mqtt_client->subscribe_status());
+  ESP_ERROR_CHECK(mqtt_client->subscribe_settings());
 
   esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
   esp_sntp_setservername(0, "pool.ntp.org");

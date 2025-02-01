@@ -96,9 +96,11 @@ esp_err_t Temperature_preferences::load_mqtt_config(models::Temperature_mqtt_con
 
     mqtt_config->room = this->read_string(handle.get(), temperature_preferences_keys.mqtt_room);
     mqtt_config->name = this->read_string(handle.get(), temperature_preferences_keys.mqtt_name);
-    mqtt_config->mqtt_config->broker.address.hostname = this->read_string(handle.get(), temperature_preferences_keys.mqtt_host);
-    handle->get_item(temperature_preferences_keys.mqtt_port, mqtt_config->mqtt_config->broker.address.port);
-    mqtt_config->mqtt_config->broker.address.transport = TRANSPORT;
+    esp_mqtt_client_config_t config = {};
+    config.broker.address.hostname = this->read_string(handle.get(), temperature_preferences_keys.mqtt_host);
+    config.broker.address.port = this->read_uint32_t(handle.get(), temperature_preferences_keys.mqtt_port);
+    config.broker.address.transport = TRANSPORT;
+    mqtt_config->mqtt_config = config;
     return err;
 }
 
@@ -109,6 +111,13 @@ char *Temperature_preferences::read_string(nvs::NVSHandle *handle, const char *k
     ESP_ERROR_CHECK(handle->get_item_size(nvs::ItemType::SZ, key, size));
     value = (char *)malloc(size); //assign size to value, otherwise we get panic
     ESP_ERROR_CHECK(handle->get_string(key, value, size));
+    return value;
+}
+
+uint32_t Temperature_preferences::read_uint32_t(nvs::NVSHandle *handle, const char *key)
+{
+    uint32_t value;
+    ESP_ERROR_CHECK(handle->get_item(key, value));
     return value;
 }
 

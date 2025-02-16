@@ -1,11 +1,3 @@
-/* Hello World Example
-
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
 #include <stdio.h>
 #include "esp_system.h"
 #include "esp_log.h"
@@ -53,6 +45,11 @@ static const char *TAG = "temperature_main";
 #define TRANSPORT MQTT_TRANSPORT_OVER_WSS
 #endif
 
+Temperature_observer *observer;
+Temperature_mqtt_client *mqtt_client;
+Temperature_wifi *wifi_client;
+Temperature_status *status;
+
 extern "C" {
   void app_main(void);
 }
@@ -62,14 +59,6 @@ void sync_time_callback(struct timeval *tv) {
   gettimeofday(tv, NULL);
   time = localtime(&tv->tv_sec);
   ESP_LOGI(TAG, "The current time is: %s", asctime(time));
-}
-
-void get_device_status() {
-
-}
-
-void get_or_update_device_settings() {
-
 }
 
 void app_main()
@@ -96,13 +85,16 @@ void app_main()
   
   // workaround initialization for wifi_config to avoid outside aggregate initializer in c++
   wifi_config_t wifi_config = { };
+  status = new Temperature_status();
   preference->load_wifi_config(&wifi_config);
-  Temperature_wifi* wifi_client = new Temperature_wifi(&wifi_config);
+  wifi_client = new Temperature_wifi(&wifi_config, status);
   ESP_ERROR_CHECK(wifi_client->start_wifi());
 
   models::Temperature_mqtt_config_t mqtt_config = { };
   preference->load_mqtt_config(&mqtt_config);
-  Temperature_mqtt_client* mqtt_client = new Temperature_mqtt_client(&mqtt_config);
+  mqtt_client = new Temperature_mqtt_client(&mqtt_config, status);
+  observer = new Temperature_observer();
+  observer->init_sensor();
   ESP_ERROR_CHECK(mqtt_client->connect_mqtt());
   ESP_ERROR_CHECK(mqtt_client->subscribe_status());
   ESP_ERROR_CHECK(mqtt_client->subscribe_settings());
@@ -112,6 +104,26 @@ void app_main()
   esp_sntp_set_sync_interval(24 * 60 * 60 * 1000);
   esp_sntp_set_time_sync_notification_cb(&sync_time_callback);
   esp_sntp_init();
+  int counter = 0;
+  while (counter < 50)
+  {
+    float value;
+    DS18B20_ERROR err = observer->read_temperature(&value);
+    if(err == DS18B20_OK) 
+    {
+      status->set_last_temperature(value);
+      struct timeval current_time;
+      gettimeofday(&current_time, NULL);
+      int64_t seconds = (int64_t)current_time.tv_sec * 1000L;
+      models::Temperature_value_t temperature_value = { 
+        .value = value,
+        .time = seconds
+      };
+      ESP_ERROR_CHECK(mqtt_client->publish_temperature_value(temperature_value));
+    }
+    counter++;
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
 
   printf("End of Application \n");
   fflush(stdout);

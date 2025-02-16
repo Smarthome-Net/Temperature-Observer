@@ -53,10 +53,11 @@ void event_handler(void *handler_arg, esp_event_base_t base, int32_t id, void *e
   }
 }
 
-Temperature_wifi::Temperature_wifi(wifi_config_t *config)
+Temperature_wifi::Temperature_wifi(wifi_config_t *config, Temperature_status *status)
 {
   this->config = config;
   this->temperature_wifi_event_group = xEventGroupCreate();
+  this->status = status;
 }
 
 Temperature_wifi::~Temperature_wifi() { }
@@ -138,6 +139,7 @@ void Temperature_wifi::retry_connect()
   else
   {
     xEventGroupSetBits(this->temperature_wifi_event_group, WIFI_FAIL_BIT);
+    this->status->set_wifi_status(false);
   }
   ESP_LOGI(TAG, "connect to the AP fail");
 }
@@ -155,8 +157,8 @@ void Temperature_wifi::connect()
 void Temperature_wifi::set_connected()
 {
   xEventGroupSetBits(this->temperature_wifi_event_group, WIFI_CONNECTED_BIT);
+  this->status->set_wifi_status(true);
 }
-
 
 esp_err_t Temperature_wifi::event_group_wait()
 {
@@ -174,6 +176,7 @@ esp_err_t Temperature_wifi::event_group_wait()
   else if (bits & WIFI_FAIL_BIT)
   {
     ESP_LOGI(TAG, "Failed to connect to ap");
+    this->status->set_wifi_status(false);
     return ESP_FAIL;
   }
   ESP_LOGI(TAG, "Unexpected event");

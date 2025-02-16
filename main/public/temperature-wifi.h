@@ -3,6 +3,7 @@
 #include "esp_wifi.h"
 #include "esp_log.h"
 #include "freertos/event_groups.h"
+#include "temperature-status.h"
 
 class Temperature_wifi
 {
@@ -12,7 +13,7 @@ private:
   wifi_config_t *config;
   esp_netif_t *netif;
   EventGroupHandle_t temperature_wifi_event_group;
-  bool is_connected = false;
+  Temperature_status *status;
 
   /**
    * Create the event loop to handle wifi event
@@ -46,7 +47,7 @@ public:
    * constructor
    * @param config wifi configuration
   */
-  Temperature_wifi(wifi_config_t *config);
+  Temperature_wifi(wifi_config_t *config, Temperature_status *status);
   ~Temperature_wifi();
 
   /**

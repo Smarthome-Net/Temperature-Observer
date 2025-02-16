@@ -21,9 +21,10 @@ static void mqtt_event_handler_static(void *event_handler_arg, esp_event_base_t 
   }
 }
 
-Temperature_mqtt_client::Temperature_mqtt_client(models::Temperature_mqtt_config_t *mqtt_config)
-{
+Temperature_mqtt_client::Temperature_mqtt_client(models::Temperature_mqtt_config_t *mqtt_config, Temperature_status *status)
+{	
   this->mqtt_config = mqtt_config;
+  this->status = status;
 }
 
 Temperature_mqtt_client::~Temperature_mqtt_client()
@@ -68,7 +69,7 @@ esp_err_t Temperature_mqtt_client::connect_mqtt()
 
 esp_err_t Temperature_mqtt_client::publish_temperature_value(models::Temperature_value_t value)
 {
-  if (!this->is_connected)
+  if (!this->status->get_device_status().is_mqtt_connected)
   {
     return ESP_ERR_INVALID_STATE;
   }
@@ -128,7 +129,7 @@ esp_err_t Temperature_mqtt_client::consume_mqtt_event(int32_t event, void *event
   case MQTT_EVENT_CONNECTED:
   {
     ESP_LOGI(TAG, "Connected to broker");
-    this->is_connected = true;
+    this->status->set_mqtt_status(true);
     xEventGroupSetBits(this->mqtt_event_group, MQTT_CONNECTED_BIT);
     break;
   }
@@ -136,7 +137,7 @@ esp_err_t Temperature_mqtt_client::consume_mqtt_event(int32_t event, void *event
     ESP_LOGI(TAG, "Message published");
     break;
   case MQTT_EVENT_DISCONNECTED:
-    this->is_connected = false;
+    this->status->set_mqtt_status(false);
     if (s_retry_count < MQTT_MAXIUM_RETRY)
     {
       s_retry_count++;
@@ -165,11 +166,6 @@ esp_err_t Temperature_mqtt_client::consume_mqtt_event(int32_t event, void *event
   return ESP_OK;
 }
 
-bool Temperature_mqtt_client::get_is_connected()
-{
-  return is_connected;
-}
-
 void Temperature_mqtt_client::handle_mqtt_data(esp_mqtt_event_handle_t data)
 {
   char *read_topic = (char *)malloc(data->topic_len + 1);
@@ -179,13 +175,8 @@ void Temperature_mqtt_client::handle_mqtt_data(esp_mqtt_event_handle_t data)
   if (strstr(read_topic, ".RPC") != NULL && ends_with(read_topic, "status"))
   {
     //status shouldn't contain data, so we ignore it
-    models::Temperature_device_status_t status = {};
-    status.battery_status = 100;
-    status.current_temperature = 20.0;
-    status.is_mqtt_connected = true;
-    status.is_wifi_connected = true;
+    models::Temperature_device_status_t status = this->status->get_device_status();
     this->publish_status(status, read_topic);
-    
   }
 
   if (strstr(read_topic, ".RPC") != NULL && ends_with(read_topic, "config"))

@@ -12,7 +12,7 @@ jobs:
 
     runs-on: ubuntu-latest
     env:
-      BINARY_NAME: temperature_observer
+      BINARY_NAME: temperature-observer
     steps:
       
     - name: Checkout Repo

@@ -29,7 +29,7 @@ jobs:
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: $BINARY_NAME.bin 
+        name: ${{env.BINARY_NAME}}.bin 
         path: |
-          build/$BINARY_NAME.bin
+          build/${{env.BINARY_NAME}}.bin
     

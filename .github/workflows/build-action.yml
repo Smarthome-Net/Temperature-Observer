@@ -1,5 +1,6 @@
 name: Temperature Observer Build
 
+
 on:
   push:
     branches: [ "main" ]
@@ -10,8 +11,10 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-
+    env:
+      BINARY_NAME: temperature_observer
     steps:
+      
     - name: Checkout Repo
       uses: actions/checkout@v4
       with:
@@ -22,4 +25,11 @@ jobs:
       with:
         esp_idf_version: v5.4
         target: esp32
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: $BINARY_NAME.bin 
+        path: |
+          build/$BINARY_NAME.bin
     

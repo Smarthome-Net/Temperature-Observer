@@ -24,6 +24,7 @@ public:
 
     esp_err_t load_wifi_config(wifi_config_t *wifi_config);
     esp_err_t load_mqtt_config(models::Temperature_mqtt_config_t *mqtt_config);
+    esp_err_t load_intervall(uint32_t *intervall);
 
     esp_err_t set_factory_default(int force_factory = 0);
 };

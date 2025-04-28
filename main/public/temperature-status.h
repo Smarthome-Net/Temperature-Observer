@@ -9,8 +9,8 @@ private:
 public:
     Temperature_status();
 
-    void set_wifi_status(bool status);
-    void set_mqtt_status(bool status);
+    void set_wifi_status(models::Connection_status_t status);
+    void set_mqtt_status(models::Connection_status_t status);
     void set_last_temperature(float temperature);
     void set_battery_staus(float battery);
     models::Temperature_device_status_t get_device_status();

@@ -104,6 +104,16 @@ esp_err_t Temperature_preferences::load_mqtt_config(models::Temperature_mqtt_con
     return err;
 }
 
+esp_err_t Temperature_preferences::load_intervall(uint32_t *intervall)
+{
+    esp_err_t err;
+    std::unique_ptr<nvs::NVSHandle> handle = nvs::open_nvs_handle(NVS_NAMESPACE, NVS_READONLY, &err);
+    ESP_ERROR_CHECK(err);
+
+    handle->get_item(temperature_preferences_keys.interval, *intervall);
+    return err;
+}
+
 char *Temperature_preferences::read_string(nvs::NVSHandle *handle, const char *key)
 {
     size_t size;

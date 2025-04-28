@@ -29,7 +29,7 @@ void event_handler(void *handler_arg, esp_event_base_t base, int32_t id, void *e
     }
     case WIFI_EVENT_STA_CONNECTED:
     {
-      ESP_LOGI(TAG, "Station contected");
+      ESP_LOGI(TAG, "Station connected");
       break;
     }
     case WIFI_EVENT_STA_DISCONNECTED:
@@ -139,7 +139,7 @@ void Temperature_wifi::retry_connect()
   else
   {
     xEventGroupSetBits(this->temperature_wifi_event_group, WIFI_FAIL_BIT);
-    this->status->set_wifi_status(false);
+    this->status->set_wifi_status(models::Connection_status_t::Disconnected);
   }
   ESP_LOGI(TAG, "connect to the AP fail");
 }
@@ -157,7 +157,7 @@ void Temperature_wifi::connect()
 void Temperature_wifi::set_connected()
 {
   xEventGroupSetBits(this->temperature_wifi_event_group, WIFI_CONNECTED_BIT);
-  this->status->set_wifi_status(true);
+  this->status->set_wifi_status(models::Connection_status_t::Connected);
 }
 
 esp_err_t Temperature_wifi::event_group_wait()
@@ -176,7 +176,7 @@ esp_err_t Temperature_wifi::event_group_wait()
   else if (bits & WIFI_FAIL_BIT)
   {
     ESP_LOGI(TAG, "Failed to connect to ap");
-    this->status->set_wifi_status(false);
+    this->status->set_wifi_status(models::Connection_status_t::Disconnected);
     return ESP_FAIL;
   }
   ESP_LOGI(TAG, "Unexpected event");

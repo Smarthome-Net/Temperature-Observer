@@ -69,17 +69,18 @@ esp_err_t Temperature_mqtt_client::connect_mqtt()
 
 esp_err_t Temperature_mqtt_client::publish_temperature_value(models::Temperature_value_t value)
 {
-  if (!this->status->get_device_status().is_mqtt_connected)
+  if (this->status->get_device_status().mqtt_connected_status != models::Connection_status_t::Connected)
   {
     return ESP_ERR_INVALID_STATE;
   }
 
   const char *topic = this->get_topic();
   nlohmann::json json = value;
-  const char *sJson = json.dump().c_str();
-  ESP_LOGI(TAG, "%s", sJson);
+  std::string sJson = json.dump();
+  const char *cJson = sJson.c_str();
+  ESP_LOGI(TAG, "%s", cJson);
 
-  int publish_status = esp_mqtt_client_publish(this->mqtt_client, topic, sJson, strlen(sJson), 0, 0);
+  int publish_status = esp_mqtt_client_publish(this->mqtt_client, topic, cJson, strlen(cJson), 0, 0);
   if (publish_status == -1)
   {
     return ESP_FAIL;
@@ -129,7 +130,7 @@ esp_err_t Temperature_mqtt_client::consume_mqtt_event(int32_t event, void *event
   case MQTT_EVENT_CONNECTED:
   {
     ESP_LOGI(TAG, "Connected to broker");
-    this->status->set_mqtt_status(true);
+    this->status->set_mqtt_status(models::Connection_status_t::Connected);
     xEventGroupSetBits(this->mqtt_event_group, MQTT_CONNECTED_BIT);
     break;
   }
@@ -137,7 +138,7 @@ esp_err_t Temperature_mqtt_client::consume_mqtt_event(int32_t event, void *event
     ESP_LOGI(TAG, "Message published");
     break;
   case MQTT_EVENT_DISCONNECTED:
-    this->status->set_mqtt_status(false);
+    this->status->set_mqtt_status(models::Connection_status_t::Disconnected);
     if (s_retry_count < MQTT_MAXIUM_RETRY)
     {
       s_retry_count++;

@@ -49,6 +49,7 @@ Temperature_observer *observer;
 Temperature_mqtt_client *mqtt_client;
 Temperature_wifi *wifi_client;
 Temperature_status *status;
+TaskHandle_t main_handle = NULL;
 
 extern "C" {
   void app_main(void);
@@ -59,6 +60,35 @@ void sync_time_callback(struct timeval *tv) {
   gettimeofday(tv, NULL);
   time = localtime(&tv->tv_sec);
   ESP_LOGI(TAG, "The current time is: %s", asctime(time));
+  vTaskResume(main_handle);
+}
+
+tm calculate_measure_time(uint32_t intervall)
+{
+  time_t now;
+  struct tm execution_time;
+
+  time(&now);
+  localtime_r(&now, &execution_time);
+
+  int moduloResult = execution_time.tm_min % intervall;
+  int minute = execution_time.tm_min - moduloResult + intervall;
+  execution_time.tm_min = minute;
+  execution_time.tm_sec = 0;
+
+  //if reach 60 we swap the hour and reset the min to 0
+  if(minute == 60) {
+    execution_time.tm_hour = execution_time.tm_hour + 1;
+    execution_time.tm_min = 0;
+  }
+
+  //if we reach midnight...
+  if(execution_time.tm_hour == 24) {
+    execution_time.tm_hour = 0;
+  }
+
+  ESP_LOGI(TAG, "First measuring at: %s", asctime(&execution_time));
+  return execution_time;
 }
 
 void app_main()
@@ -79,7 +109,8 @@ void app_main()
   ESP_ERROR_CHECK(err_code);
   ESP_ERROR_CHECK(esp_netif_init());
   ESP_ERROR_CHECK(esp_event_loop_create_default());
-  
+
+  main_handle = xTaskGetCurrentTaskHandle();
   setenv("TZ", TIMEZONE, 1);
   tzset(); 
   
@@ -104,29 +135,44 @@ void app_main()
   esp_sntp_set_sync_interval(24 * 60 * 60 * 1000);
   esp_sntp_set_time_sync_notification_cb(&sync_time_callback);
   esp_sntp_init();
-  int counter = 0;
-  while (counter < 50)
+  vTaskSuspend(main_handle);
+  
+  uint32_t intervall = 0;
+  ESP_ERROR_CHECK(preference->load_intervall(&intervall));
+  ESP_LOGI(TAG, "Intervall in minutes: %lu", intervall);
+  time_t now;
+  struct tm executing_time = calculate_measure_time(intervall);
+  time(&now);
+  const double diffTime = difftime(mktime(&executing_time), now);
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xIntial = pdMS_TO_TICKS(diffTime * 1000);
+  xTaskDelayUntil(&xLastWakeTime, xIntial);
+  
+  const TickType_t xFrequency = pdMS_TO_TICKS(intervall * 60 * 1000);
+  xLastWakeTime = xTaskGetTickCount();
+  while (true)
   {
     float value;
     DS18B20_ERROR err = observer->read_temperature(&value);
     if(err == DS18B20_OK) 
     {
       status->set_last_temperature(value);
-      struct timeval current_time;
-      gettimeofday(&current_time, NULL);
-      int64_t seconds = (int64_t)current_time.tv_sec * 1000L;
+      struct tm *measure_time_tm;
+      struct timeval measure_time_tv;
+      gettimeofday(&measure_time_tv, NULL);
+      measure_time_tm = localtime(&measure_time_tv.tv_sec);
+      int64_t seconds = (int64_t)measure_time_tv.tv_sec * 1000L;
+      ESP_LOGI(TAG, "Measuring time is: %s", asctime(measure_time_tm));
       models::Temperature_value_t temperature_value = { 
         .value = value,
         .time = seconds
       };
       ESP_ERROR_CHECK(mqtt_client->publish_temperature_value(temperature_value));
+      xTaskDelayUntil(&xLastWakeTime, xFrequency);
+      xLastWakeTime = xTaskGetTickCount();
     }
-    counter++;
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
 
   printf("End of Application \n");
   fflush(stdout);
 }
-
-

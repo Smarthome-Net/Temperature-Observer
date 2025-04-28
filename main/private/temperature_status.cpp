@@ -4,14 +4,14 @@ Temperature_status::Temperature_status()
 {
 }
 
-void Temperature_status::set_wifi_status(bool status)
+void Temperature_status::set_wifi_status(models::Connection_status_t status)
 {
-    this->status.is_wifi_connected = status;
+    this->status.wifi_connected_status = status;
 }
 
-void Temperature_status::set_mqtt_status(bool status)
+void Temperature_status::set_mqtt_status(models::Connection_status_t status)
 {
-    this->status.is_mqtt_connected = status;
+    this->status.mqtt_connected_status = status;
 }
 
 void Temperature_status::set_last_temperature(float temperature)

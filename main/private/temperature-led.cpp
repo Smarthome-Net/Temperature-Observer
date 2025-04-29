@@ -1,6 +1,7 @@
 #include "temperature-led.h"
 
 static TaskHandle_t blink_task_handle;
+
 static void blink_task(void *pvParameters) 
 {
     Temperature_led *ref = (Temperature_led *) pvParameters;

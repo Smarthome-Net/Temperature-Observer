@@ -136,6 +136,7 @@ void app_main()
   esp_sntp_set_time_sync_notification_cb(&sync_time_callback);
   esp_sntp_init();
   vTaskSuspend(main_handle);
+  Temperature_led *measrure_led = new Temperature_led(GPIO_NUM_19);
   
   uint32_t intervall = 0;
   ESP_ERROR_CHECK(preference->load_intervall(&intervall));
@@ -156,6 +157,8 @@ void app_main()
     DS18B20_ERROR err = observer->read_temperature(&value);
     if(err == DS18B20_OK) 
     {
+      measrure_led->toggle();
+      xLastWakeTime = xTaskGetTickCount();
       status->set_last_temperature(value);
       struct tm *measure_time_tm;
       struct timeval measure_time_tv;
@@ -168,8 +171,9 @@ void app_main()
         .time = seconds
       };
       ESP_ERROR_CHECK(mqtt_client->publish_temperature_value(temperature_value));
+      measrure_led->toggle();
+      
       xTaskDelayUntil(&xLastWakeTime, xFrequency);
-      xLastWakeTime = xTaskGetTickCount();
     }
   }
 

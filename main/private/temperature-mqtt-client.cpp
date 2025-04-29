@@ -188,7 +188,6 @@ void Temperature_mqtt_client::handle_mqtt_data(esp_mqtt_event_handle_t data)
     if(data->data_len == 0)
     {
       ESP_LOGI(TAG, "No data received");
-      return;
     }
     models::Temperature_preferences_t settings = {};
     settings.measure_intervall = 15;

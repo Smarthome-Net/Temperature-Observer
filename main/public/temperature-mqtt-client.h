@@ -10,6 +10,7 @@
 #include "models/temperature_preferences_t.h"
 #include "models/temperature_mqtt_config_t.h"
 #include "temperature-status.h"
+#include "temperature-preferences.h"
 
 class Temperature_mqtt_client
 {
@@ -18,6 +19,7 @@ class Temperature_mqtt_client
     models::Temperature_mqtt_config_t* mqtt_config;
     EventGroupHandle_t mqtt_event_group;
     Temperature_status* status;
+    Temperature_preferences* preferences;
     const char* get_topic();
     const char* get_rpc_subscribe_topic(const char* endpoint);
     const char* get_rpc_response_topic(const char* topic);
@@ -25,7 +27,7 @@ class Temperature_mqtt_client
     esp_err_t publish(const char* topic, const char* data);
   
   public:
-    Temperature_mqtt_client(models::Temperature_mqtt_config_t* mqtt_config, Temperature_status* status);
+    Temperature_mqtt_client(models::Temperature_mqtt_config_t* mqtt_config, Temperature_status* status, Temperature_preferences* preferences);
     ~Temperature_mqtt_client();
     esp_err_t consume_mqtt_event(int32_t event, void *event_data);
     

@@ -123,7 +123,7 @@ void app_main()
 
   models::Temperature_mqtt_config_t mqtt_config = { };
   preference->load_mqtt_config(&mqtt_config);
-  mqtt_client = new Temperature_mqtt_client(&mqtt_config, status);
+  mqtt_client = new Temperature_mqtt_client(&mqtt_config, status, preference);
   observer = new Temperature_observer();
   observer->init_sensor();
   ESP_ERROR_CHECK(mqtt_client->connect_mqtt());

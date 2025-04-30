@@ -21,20 +21,6 @@ namespace models
         float battery_status;
         float current_temperature;
 
-        friend void to_json(nlohmann::json& json, const Temperature_device_status_t& value) 
-        {
-            json["wifiConnectedStatus"] = value.wifi_connected_status;
-            json["mqttConnectedStatus"] = value.wifi_connected_status;
-            json["batteryStatus"] = value.battery_status;
-            json["currentTemperature"] = value.current_temperature;
-        }
-        
-        friend void from_json(const nlohmann::json& json, Temperature_device_status_t& value)
-        {
-            json.at("wifiConnectedStatus").get_to(value.wifi_connected_status);
-            json.at("mqttConnectedStatus").get_to(value.wifi_connected_status);
-            json.at("batteryStatus").get_to(value.battery_status);
-            json.at("currentTemperature").get_to(value.current_temperature);
-        } 
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(Temperature_device_status_t, wifi_connected_status, mqtt_connected_status, battery_status, current_temperature);
     };
 }

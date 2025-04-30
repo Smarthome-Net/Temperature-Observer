@@ -21,10 +21,11 @@ static void mqtt_event_handler_static(void *event_handler_arg, esp_event_base_t 
   }
 }
 
-Temperature_mqtt_client::Temperature_mqtt_client(models::Temperature_mqtt_config_t *mqtt_config, Temperature_status *status)
+Temperature_mqtt_client::Temperature_mqtt_client(models::Temperature_mqtt_config_t *mqtt_config, Temperature_status *status, Temperature_preferences *preferences)
 {	
   this->mqtt_config = mqtt_config;
   this->status = status;
+  this->preferences = preferences;
 }
 
 Temperature_mqtt_client::~Temperature_mqtt_client()
@@ -91,15 +92,17 @@ esp_err_t Temperature_mqtt_client::publish_temperature_value(models::Temperature
 esp_err_t Temperature_mqtt_client::publish_status(models::Temperature_device_status_t device_status, const char *topic)
 {
   nlohmann::json json = device_status;
-  const char *sJson = json.dump().c_str();
-  return this->publish(topic, sJson);
+  std::string sJson = json.dump();
+  const char *cJson = sJson.c_str();
+  return this->publish(topic, cJson);
 }
 
 esp_err_t Temperature_mqtt_client::publish_settings(models::Temperature_preferences_t settings, const char *topic)
 {
   nlohmann::json json = settings;
-  const char *sJson = json.dump().c_str();
-  return this->publish(topic, sJson);
+  std::string sJson = json.dump();
+  const char *cJson = sJson.c_str();
+  return this->publish(topic, cJson);
 }
 
 esp_err_t Temperature_mqtt_client::subscribe_status()
@@ -185,20 +188,21 @@ void Temperature_mqtt_client::handle_mqtt_data(esp_mqtt_event_handle_t data)
     //config can contain data:
     //with data: update settings and return the new settings
     //without data: return only the current settings
-    if(data->data_len == 0)
+    if(data->data_len > 0)
     {
-      ESP_LOGI(TAG, "No data received");
+      char *read_data = (char *)malloc(data->data_len + 1);
+      strncpy(read_data, data->data, data->data_len);
+      read_data[data->data_len] = '\0';
+      ESP_LOGI(TAG, "Received data: %s", read_data);
+      nlohmann::json json = nlohmann::json::parse(read_data);
+      models::Temperature_preferences_t settings = json;
+      this->preferences->save_prefrenecs(&settings);
     }
-    models::Temperature_preferences_t settings = {};
-    settings.measure_intervall = 15;
-    settings.mqtt_host = "mqtt_host";	
-    settings.mqtt_port = 1883;
-    settings.name = "name";
-    settings.room = "room";
-    settings.ssid = "ssid";
-    settings.password = "password";
+
+    models::Temperature_preferences_t settings;
+    this->preferences->load_preferences(&settings);
+    settings.password = ""; //remove password from settings
     this->publish_settings(settings, read_topic);
-    
   }
 }
 
@@ -206,7 +210,7 @@ const char *Temperature_mqtt_client::get_topic()
 {
   const char *temperature = "temperature";
   const char *room = this->mqtt_config->room;
-  const char *name = this->mqtt_config->name;
+  const char *device_name = this->mqtt_config->device_name;
 
   size_t size = strlen(BASE_TOPIC);
   size += strlen("/");
@@ -214,11 +218,11 @@ const char *Temperature_mqtt_client::get_topic()
   size += strlen("/");
   size += strlen(room);
   size += strlen("/");
-  size += strlen(name);
+  size += strlen(device_name);
   size += 1;
 
   char *buffer = (char *)malloc(size);
-  snprintf(buffer, size, "%s/%s/%s/%s", BASE_TOPIC, temperature, room, name);
+  snprintf(buffer, size, "%s/%s/%s/%s", BASE_TOPIC, temperature, room, device_name);
   ESP_LOGD(TAG, "Fulltopic: %s", buffer);
 
   return buffer;
@@ -228,7 +232,7 @@ const char *Temperature_mqtt_client::get_rpc_subscribe_topic(const char *endpoin
 {
   const char *RPC = "RPC";
   const char *room = this->mqtt_config->room;
-  const char *name = this->mqtt_config->name;
+  const char *device_name = this->mqtt_config->device_name;
 
   size_t size = strlen(BASE_TOPIC);
   size += strlen(".");
@@ -236,13 +240,13 @@ const char *Temperature_mqtt_client::get_rpc_subscribe_topic(const char *endpoin
   size += strlen("/");
   size += strlen(room);
   size += strlen("/");
-  size += strlen(name);
+  size += strlen(device_name);
   size += strlen("/");
   size += strlen(endpoint);
   size += 1;
 
   char *buffer = (char *)malloc(size);
-  snprintf(buffer, size, "%s.%s/%s/%s/%s", BASE_TOPIC, RPC, room, name, endpoint);
+  snprintf(buffer, size, "%s.%s/%s/%s/%s", BASE_TOPIC, RPC, room, device_name, endpoint);
   ESP_LOGD(TAG, "Fulltopic: %s", buffer);
 
   return buffer;

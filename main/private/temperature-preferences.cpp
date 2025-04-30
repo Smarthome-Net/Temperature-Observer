@@ -61,10 +61,10 @@ esp_err_t Temperature_preferences::load_preferences(models::Temperature_preferen
     std::unique_ptr<nvs::NVSHandle> handle = nvs::open_nvs_handle(NVS_NAMESPACE, NVS_READONLY, &err);
     ESP_ERROR_CHECK(err);
 
-    handle->get_item(temperature_preferences_keys.interval, preferences->measure_intervall);
+    handle->get_item(temperature_preferences_keys.interval, preferences->measure_interval);
     handle->get_item(temperature_preferences_keys.mqtt_port, preferences->mqtt_port);
     preferences->mqtt_host = this->read_string(handle.get(), temperature_preferences_keys.mqtt_host);
-    preferences->name = this->read_string(handle.get(), temperature_preferences_keys.mqtt_name);
+    preferences->device_name = this->read_string(handle.get(), temperature_preferences_keys.mqtt_name);
     preferences->room =this->read_string(handle.get(), temperature_preferences_keys.mqtt_room);
     preferences->ssid = this->read_string(handle.get(), temperature_preferences_keys.wifi_ssid);
     preferences->password = this->read_string(handle.get(), temperature_preferences_keys.wifi_password);
@@ -95,7 +95,7 @@ esp_err_t Temperature_preferences::load_mqtt_config(models::Temperature_mqtt_con
     ESP_ERROR_CHECK(err);
 
     mqtt_config->room = this->read_string(handle.get(), temperature_preferences_keys.mqtt_room);
-    mqtt_config->name = this->read_string(handle.get(), temperature_preferences_keys.mqtt_name);
+    mqtt_config->device_name = this->read_string(handle.get(), temperature_preferences_keys.mqtt_name);
     esp_mqtt_client_config_t config = {};
     config.broker.address.hostname = this->read_string(handle.get(), temperature_preferences_keys.mqtt_host);
     config.broker.address.port = this->read_uint32_t(handle.get(), temperature_preferences_keys.mqtt_port);
@@ -137,15 +137,35 @@ esp_err_t Temperature_preferences::save_prefrenecs(models::Temperature_preferenc
     std::unique_ptr<nvs::NVSHandle> handle = nvs::open_nvs_handle(NVS_NAMESPACE, NVS_READWRITE, &err);
     ESP_ERROR_CHECK(err);
 
-    handle->set_item(temperature_preferences_keys.interval, preferences->measure_intervall);
-    handle->set_item(temperature_preferences_keys.mqtt_port, preferences->mqtt_port);
-    handle->set_string(temperature_preferences_keys.mqtt_host, preferences->mqtt_host);
-    handle->set_string(temperature_preferences_keys.mqtt_name, preferences->name);
-    handle->set_string(temperature_preferences_keys.mqtt_room, preferences->room);
-    handle->set_string(temperature_preferences_keys.wifi_ssid, preferences->ssid);
-    handle->set_string(temperature_preferences_keys.wifi_password, preferences->password);
-    handle->commit();
-    return ESP_OK;
+    if(preferences->measure_interval > 0) {
+        handle->set_item(temperature_preferences_keys.interval, preferences->measure_interval);
+    }
+
+    if(preferences->mqtt_port > 0) {
+        handle->set_item(temperature_preferences_keys.mqtt_port, preferences->mqtt_port);
+    }
+
+    if(preferences->mqtt_host.length() > 0) {
+        handle->set_string(temperature_preferences_keys.mqtt_host, preferences->mqtt_host.c_str());
+    }
+
+    if(preferences->device_name.length() > 0) {
+        handle->set_string(temperature_preferences_keys.mqtt_name, preferences->device_name.c_str());
+    }
+    if(preferences->room.length() > 0) {
+        handle->set_string(temperature_preferences_keys.mqtt_room, preferences->room.c_str());
+    }
+    if(preferences->ssid.length() > 0) {
+        handle->set_string(temperature_preferences_keys.wifi_ssid, preferences->ssid.c_str());
+    }
+
+    if(preferences->password.length() > 0) {
+        handle->set_string(temperature_preferences_keys.wifi_password, preferences->password.c_str());
+    }
+    
+    err = handle->commit();
+    ESP_ERROR_CHECK(err);
+    return err;
 }
 
 esp_err_t Temperature_preferences::set_factory_default(int force_factory)
@@ -155,9 +175,9 @@ esp_err_t Temperature_preferences::set_factory_default(int force_factory)
     preferences.password = WIFI_PASSWORD;
     preferences.mqtt_host = CONFIG_BROKER_HOST;
     preferences.room = CONFIG_ROOM;
-    preferences.name = CONFIG_NAME;
+    preferences.device_name = CONFIG_NAME;
     preferences.mqtt_port = CONFIG_BROKER_PORT;
-    preferences.measure_intervall = INTERVAL;
+    preferences.measure_interval = INTERVAL;
 
     this->save_prefrenecs(&preferences);
     return ESP_OK;

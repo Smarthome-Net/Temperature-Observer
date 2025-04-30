@@ -10,34 +10,14 @@ namespace models
 {
     struct Temperature_preferences_t
     {
-        const char *ssid;
-        const char *password;
-        const char *mqtt_host;
+        std::string ssid;
+        std::string password;
+        std::string mqtt_host;
         uint32_t mqtt_port;
-        uint32_t measure_intervall;
-        const char *room;
-        const char *name;
+        uint32_t measure_interval;
+        std::string room;
+        std::string device_name;
 
-        friend void to_json(nlohmann::json& json, const Temperature_preferences_t& value) 
-        {
-            json["ssid"] = value.ssid;
-            // json["password"] = value.password;
-            json["mqttHost"] = value.mqtt_host;
-            json["mqttPort"] = value.mqtt_port;
-            json["measureIntervall"] = value.measure_intervall;
-            json["room"] = value.room;
-            json["name"] = value.name;
-        }
-        
-        friend void from_json(const nlohmann::json& json, Temperature_preferences_t& value)
-        {
-            value.ssid = json.at("ssid").get<std::string>().c_str();
-            value.password = json.at("password").get<std::string>().c_str();
-            value.mqtt_host = json.at("mqttHost").get<std::string>().c_str();
-            json.at("mqttPort").get_to(value.mqtt_port);
-            json.at("measureIntervall").get_to(value.measure_intervall);
-            value.room = json.at("room").get<std::string>().c_str();
-            value.name = json.at("name").get<std::string>().c_str();
-        }    
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(Temperature_preferences_t, ssid, password, mqtt_host, mqtt_port, measure_interval, room, device_name);  
     };
 }
